@@ -1,0 +1,60 @@
+/*
+练习一、隐式游标（游标属性）
+现有如下PL/SQL块，根据用户输入的部门编号，更新员工工资。
+declaer
+  dno number;
+begin 
+  dno:='&dno';
+  update emp set sal = sal+100 where deptno = dno;
+  -- 补全代码;
+end;
+请在注释处补全代码实现：如果更新成功则显示用户成功更新了多少条记录，否则提示部门不存在。
+*/
+declare
+  dno number;
+begin 
+  dno:='&dno';
+  update emp set sal = sal+100 where deptno = dno;
+    select count(*)into dno from emp where deptno = dno;
+  if dno>0  then
+     dbms_output.put_line('修改了'||dno);
+  else
+     dbms_output.put_line('部门不存在');
+  end if;
+end;
+
+/*
+练习二、显式游标
+使用显式游标编写一个程序，以显示scott用户中emp表和dept表中的empno，ename，sal，deptno，dname五个字段值。
+*/
+declare
+cursor cur_empOrDept is 
+select emp.empno,emp.ename,emp.sal,dept.deptno,dept.dname from emp inner join dept on emp.deptno = dept.deptno;
+       cur_v_row emp%rowtype;
+begin
+   for cur_v_row in cur_empOrDept
+       loop
+                 dbms_output.put_line(cur_v_row.empno||chr(9)||chr(9)||cur_v_row.sal||chr(9)||chr(9)||cur_v_row.deptno||chr(9)||chr(9)||cur_v_row.dname);
+       end loop;
+end;
+ 
+ 
+ /*
+ 练习三、循环游标
+编写程序以显示各部门名称和该部门包含的员工姓名。要求使用显式的循环游标实现。
+效果如下：
+部门编号 ：NO,名称：NAME
+员工：1
+员工：2
+员工：3
+ */
+ select emp.deptno from emp group by emp.deptno
+declare
+cursor cur_emp_for is select * from emp;
+       cur_v_row emp%rowtype;
+begin
+       for cur_v_row in cur_emp_for 
+         loop
+           dbms_output.put_line('部门编号'||cur_v_row.deptno||'部门名称'||cur_v_row.job);
+         end loop;
+end;

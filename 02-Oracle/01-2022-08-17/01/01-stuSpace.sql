@@ -1,0 +1,232 @@
+/*
+练习一：创建表空间
+1.创建表空间名为stuSpace，文件存放于D盘根目录下，初始大小为32M，允许自动增长，每次增长32M，最大到1G。
+*/
+drop tablespace stuSpace including contents and datafiles;
+create tablespace stuSpace 
+datafile 'E:\S3\01-Oracle\02-Oracle\01-2022-08-17\01stuSpace.dbf' 
+size 32m 
+autoextend on 
+next 1m ;
+
+/*
+练习二：创建Oracle用户
+1、用户名为stuDBA，密码为stu
+2、将表空间stuSpace设置为用户stuDBA的默认表空间
+3、为用户stuDBA授予DBA角色
+*/
+drop user stuDBA;
+grant connect to stuDBA;
+grant resource to stuDBA;
+grant dba to stuDBA;
+create user stuDBA identified by stu default tablespace stuSpace;
+
+/*
+练习三：创建表
+要求：使用stuDBA用户登录，创建如下Oracle表，且添加相应约束，并保存SQL脚本
+
+1、学员信息表
+表名：StudentInfo    主键：StuID
+列名                数据类型      长度      是否为空    描述
+StuID             Number            4       不允许     本条记录编号
+StuNumber         Varchar2          10      不允许     学员学号
+StuName           Varchar2          32      不允许     学员姓名
+StuAge            Number            4       允许       学员年龄，必须在16-35岁之间
+StuSex            Varchar2          2       不允许     学员性别，默认为‘男’，取值范围在‘男’或‘女’之间
+StuCard           Varchar2          20      允许       学员身份证号码
+StuJoinTime       Date                      不允许     学员入学时间
+StuAddress        Varchar2          50      允许       学员家庭住址
+SClassID          number            4       允许       学员所在班级ID，外键，引用ClassInfo表的主键ClassID
+*/
+drop table StudentInfo;
+create table StudentInfo(
+       StuID Number(4) not null primary key, 
+       StuNumber varchar2(10) not null,
+       StunName varchar2(32) not null,
+       StuAge Number(4) check(StuAge>=16 and StuAge<=35),
+       StuSex varchar2(2)default '男' not null check(StuSex in('男','女')),
+       StuCard varchar2(20),
+       StuJoinTime date not null,
+       StuAddress varchar2(50),
+       SClassID number(4),
+       CONSTRAINT fk_SClassID_ClassInfo foreign key (SClassID) references ClassInfo(ClassID)
+);
+COMMENT ON TABLE StudentInfo IS '学生信息表';
+
+/*
+2、班级信息表
+表名：ClassInfo    主键：ClassID
+列名              数据类型     长度      是否为空   描述
+ClassID           Number         4      不允许     本条记录编号
+ClassNumber      Varchar2        20     不允许     班级编号(名称)
+CTeacherID       Number          4      不允许     班主任ID，外键，引用TeacherInfo表的主键TeacherID
+ClassGrade       Varchar2        2      不允许     班级所在年级，默认为‘S1’，取值范围在‘S1’，‘S2’，‘Y2’之间
+*/
+drop table ClassInfo;
+create table ClassInfo(
+       ClassID number(4) not null primary key,
+       ClassNumber varchar2(20) not null,
+       CTeacherID number(4) not null,
+       ClassGrade varchar2(2) default'S1' not null check(ClassGrade in('S1','S2','Y2')),
+       CONSTRAINT fk_TeacherInfo_ClassInfo foreign key (CTeacherID) references TeacherInfo(TeacherID)
+);
+comment on table ClassInfo is '班级信息表';
+
+/*
+3、班主任信息表
+表名：TeacherInfo    主键：TeacherID
+列名                数据类型     长度     是否为空    描述
+TeacherID         Number         4        不允许      本条记录编号
+TeacherName       Varchar2       20       不允许      班主任姓名
+TeacherTel        Varchar2       20       允许        班主任电话
+TeacherEmail      Varchar2       20       允许        班主任电子邮箱，邮箱必须含有‘@’符号
+*/
+drop table TeacherInfo;
+create table TeacherInfo(
+       TeacherID Number(4) not null primary key,
+       TeacherName varchar2(20) not null,
+       TeacherTel varchar2(20),
+       TeacherEmail varchar2(20) check(TeacherEmail like ('%@%'))
+);
+comment on table TeacherInfo is '班主任信息表';
+
+/*
+4、学员成绩表
+表名：StudentExam    主键: ExamID
+列名                数据类型       长度             是否为空         描述
+ExamID            Number           4                不允许          本条记录编号
+ExamNumber        Varchar2         32               不允许          本次考试代号
+EStuID            Number           4                不允许          学员信息ID，外键，引用StudentInfo表的主键StuID
+ExamSubject       Varchar2         20               不允许          本次考试课程名称
+ExamResult        Number           4                允许            学员成绩，取值范围在0-100分之间
+*/
+drop table StudentExam;
+create table StudentExam(
+       ExamID number(4) not null primary key,
+       ExamNumber varchar2(32) not null,
+       EStuID number(4) not null,
+       ExamSubject varchar2(20) not null,
+       ExamResult number(4) check(ExamResult >= 0 and ExamResult <= 100),
+       CONSTRAINT fk_StudentInfo_StudentExam FOREIGN KEY (EStuID) REFERENCES StudentInfo(StuID)
+);
+comment on table StudentExam is '学员成绩表';
+
+/*
+练习四：数据维护
+1、学校最近招收了一批新学员 (因为刚到学校，还没有未其分配班级，所以班级信息为Null值) ，详细信息如下所示。现在需要将这些信息录入至数据库之中，请编写Sql语句将以下信息插入学员信息表 (StudentInfo) 中
+学号  姓名  年龄  性别  身份证 入学时间  家庭住址  班级ID
+StuNumber StuName StuAge  StuSex  StuCard StuJoinTime StuAddress  SClassID
+001 火云邪神  18  男 430105198905022032  2007-3-1  长沙市开福区  Null
+002 东方不败  20  男 430104198703012011  2007-3-10 湖南湘潭  Null
+003 小李飞车  18  男 420106198912064044  2007-3-2  广东佛山  Null
+004 樱桃肉丸子 18  女 420106198908061085  2007-3-6  长沙市岳麓区  Null
+*/
+insert into StudentInfo values
+(seq_StudentInfo.Nextval,'001','火云邪神',18,'男','430105198905022032',to_date('2007-3-1','YYYY-MM-DD'),'长沙市开福区',null);
+insert into StudentInfo values
+(seq_StudentInfo.Nextval,'002','东方不败',20,'男','430104198703012011',to_date('2007-3-10','YYYY-MM-DD'),'湖南湘潭',null);
+insert into StudentInfo values
+(seq_StudentInfo.Nextval,'003','小李飞车',18,'男','420106198912064044',to_date('2007-3-2','YYYY-MM-DD'),'广东佛山',null);
+insert into StudentInfo values
+(seq_StudentInfo.Nextval,'004','樱桃肉丸子',18,'女','420106198908061085',to_date('2007-3-6','YYYY-MM-DD'),'长沙市岳麓区',null);
+
+/*
+2、学校现有班主任信息如下所示，请编写SQL语句将数据录入至TeacherInfo表中
+姓名           电话         email
+TeacherName    TeacherTel   TeacherEmail
+唐三藏         13907311119  tsz@yahoo.com
+擎天柱         13907315200  qtz@yahoo.com
+*/
+insert into TeacherInfo values(seq_TeacherInfo.Nextval,'唐三藏','13907311119','tsz@yahoo.com');
+insert into TeacherInfo values(seq_TeacherInfo.Nextval,'擎天柱','13907315200','qtz@yahoo.com');
+
+/*
+3、现在学校准备新开班级，班级信息如下表所示，请编写SQL语句，将数据录入至班级信息表ClassInfo中。
+班级编号：07034    班主任：擎天柱   年级：S1 
+班级学员：火云邪神，小李飞车
+完成步骤提示：
+1）从班主任信息表中查找班主任 ‘擎天柱’的ID
+2）向班级信息表中添加班级信息
+班级编号        班主任ID       所属年级
+ClassNumber     CTeacherID     ClassGrade
+07034           查找到的ID     S1
+*/
+select TeacherID from TeacherInfo where TeacherInfo.Teachername = '擎天柱';
+insert into ClassInfo values(seq_ClassInfo.Nextval,'07034',(select TeacherID from TeacherInfo where TeacherInfo.Teachername = '擎天柱'),'S1');
+
+/*
+3）在学员信息表中，将学员‘火云邪神’和‘小李飞车’的信息中‘班级ID’一项值修改为07034班对应的班级ID
+*/
+update StudentInfo 
+set StudentInfo.Sclassid = (select ClassInfo.Classid from ClassInfo where ClassInfo.Classnumber='07034') 
+where StudentInfo.Stunname='火云邪神' or StudentInfo.Stunname='小李飞车';
+
+/*
+4、新开班级，班级信息如下表所示，请编写SQL语句，将数据录入至班级信息表ClassInfo中。
+班级编号：07038    班主任 唐三藏   年级：S1 
+班级学员：东方不败，樱桃肉丸子
+完成步骤提示：同上3
+*/
+insert into ClassInfo values(seq_ClassInfo.Nextval,'07038',(select TeacherInfo.Teacherid from TeacherInfo where TeacherInfo.Teachername='唐三藏'),'S1');
+update StudentInfo 
+set StudentInfo.Sclassid = (select ClassInfo.Classid from ClassInfo where ClassInfo.Classnumber='07038') 
+where StudentInfo.Stunname='东方不败' or StudentInfo.Stunname='樱桃肉丸子';
+
+/*
+5、最近学校组织了S1年纪的一次考试，考试编号为‘S1_2007070801’,考试科目为SQL和Java，成绩如下表所示，请按照下表所示将数据录入数据库
+学员  科目  成绩
+火云邪神  SQL 80
+火云邪神  Java  56
+小李飞车  SQL 90
+小李飞车  Java  80
+樱桃肉丸子 SQL 95
+樱桃肉丸子 Java  80
+东方不败  SQL 80
+东方不败  Java  90
+
+完成步骤提示：
+1）在学员信息表中查找出对应的学员ID
+2）找到学员ID后进行数据的录入工作。
+以火云邪神为例：
+ExamNumber  EStuID  ExamSubject ExamResult
+考试代号  学员ID  考试科目  考试成绩
+S1_2007070801 查找到的ID  SQL 80
+*/
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='火云邪神'),'SQL',80);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='火云邪神'),'Java',56);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='小李飞车'),'SQL ',90);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='小李飞车'),'Java',80);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='樱桃肉丸子'),'SQL ',95);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='樱桃肉丸子'),'Java',80);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='东方不败'),'SQL ',80);
+insert into StudentExam values(seq_StudentExam.Nextval,'S1_2007070801',(select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname='东方不败'),'Java',90);
+
+/*
+6、由于工作人员失误，经查证，东方不败没有参加本次考试，请在数据库中将该学员的考试信息删除。
+*/
+
+delete from StudentExam where StudentExam.Estuid = (select StudentInfo.Stuid from StudentInfo where StudentInfo.Stunname = '东方不败');
+
+/*查看表*/
+select * from StudentExam;
+select * from StudentInfo;
+select * from ClassInfo;
+select * from TeacherInfo;
+
+/*序列*/
+create sequence seq_StudentInfo start with 1 increment by 1 maxvalue 100;
+create sequence seq_StudentExam start with 1 increment by 1 maxvalue 100;
+create sequence seq_ClassInfo   start with 1 increment by 1 maxvalue 100;
+create sequence seq_TeacherInfo start with 1 increment by 1 maxvalue 100;
+
+/*删除序列*/
+drop sequence seq_StudentInfo;
+drop sequence seq_StudentExam;
+drop sequence seq_ClassInfo;
+drop sequence seq_TeacherInfo;
+
+/*格式化顺序*/
+drop table StudentExam;
+drop table StudentInfo;
+drop table ClassInfo;
+drop table TeacherInfo;
